@@ -101,8 +101,29 @@ jobs:
           cd build
           zip -r "${{ inputs.ipa_name }}.ipa" Payload
 
+      - name: Resolve artifact path
+        id: artifact_path
+        env:
+          APP_DIR: ${{ inputs.app_dir }}
+          IPA_NAME: ${{ inputs.ipa_name }}
+        run: |
+          app_dir="${APP_DIR#./}"
+          app_dir="${app_dir%/}"
+          if [[ "$app_dir" == "." ]]; then
+            app_dir=""
+          fi
+          if [[ "$app_dir" == ".." || "$app_dir" == ../* || "$app_dir" == */../* || "$app_dir" == */.. || "$app_dir" == /* ]]; then
+            echo "app_dir must point to a directory inside the checked-out repository"
+            exit 1
+          fi
+          artifact_dir="target"
+          if [[ -n "$app_dir" ]]; then
+            artifact_dir="$artifact_dir/$app_dir"
+          fi
+          echo "path=$artifact_dir/build/$IPA_NAME.ipa" >> "$GITHUB_OUTPUT"
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.ipa_name }}
-          path: target/${{ inputs.app_dir }}/build/${{ inputs.ipa_name }}.ipa
+          path: ${{ steps.artifact_path.outputs.path }}
           retention-days: 14
